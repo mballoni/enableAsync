@@ -1,6 +1,5 @@
 package com.demo.configuration;
 
-import com.demo.util.ContextAwareExecutorDecorator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.AsyncConfigurerSupport;
@@ -24,7 +23,7 @@ public class AsyncMVCContext extends AsyncConfigurerSupport {
     executor.setMaxPoolSize(42);
     executor.setQueueCapacity(11);
     executor.setThreadNamePrefix("ContextAwareExecutor-");
-//    executor.initialize();
-    return new ContextAwareExecutorDecorator(executor);
+    executor.setTaskDecorator(new MDCTaskDecorator());
+    return executor;
   }
 }
