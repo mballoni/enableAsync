@@ -1,0 +1,9 @@
+# @EnableAsync application
+
+## Startup:
+
+gradle clean build bootRun
+
+## Request:
+
+curl --header "Content-Type: application/json" --header "responseTo: http://demo6501094.mockable.io/posta" -X POST http://localhost:8085/carrier/

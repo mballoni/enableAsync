@@ -1,0 +1,14 @@
+info:
+  build:
+    version: ${project.version}
+    name: ${spring.application.name}
+
+management.security.enabled: false
+
+c4.swagger:
+  groupName: Mocks
+  pathRegex: /api/v1/*.*
+  title: Mocks API
+  version: 1.0.0
+
+server.port: 8085

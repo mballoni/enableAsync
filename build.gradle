@@ -1,0 +1,152 @@
+configurations {
+  compile.exclude module: "spring-boot-starter-tomcat"
+}
+
+buildscript {
+  ext {
+    springBootVersion = '1.5.1.RELEASE'
+    springCloudVersion = 'Camden.SR5'
+    theVersion = version
+  }
+  repositories {
+    mavenCentral()
+    maven { url 'https://plugins.gradle.org/m2/' }
+  }
+  dependencies {
+    classpath("net.researchgate:gradle-release:2.4.0")
+    classpath('se.transmode.gradle:gradle-docker:1.2')
+    classpath('org.owasp:dependency-check-gradle:1.4.4.1')
+    classpath("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:2.2.1")
+
+    classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+  }
+}
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'docker'
+apply plugin: 'idea'
+apply plugin: 'net.researchgate.release'
+apply plugin: "org.sonarqube"
+apply plugin: 'jacoco'
+apply plugin: 'org.owasp.dependencycheck'
+apply plugin: 'maven'
+apply plugin: 'maven-publish'
+
+
+repositories {
+  mavenCentral()
+  mavenLocal()
+
+  maven { url 'http://100.68.2.7:8081/repository/maven-releases/' }
+  maven { url 'http://100.68.2.7:8081/repository/3rd-party/' }
+}
+
+
+
+dependencies {
+  compile('org.springframework.boot:spring-boot-starter-actuator')
+  compile('org.springframework.boot:spring-boot-starter-web')
+  compile('org.springframework.boot:spring-boot-starter-jetty')
+  compile('net.logstash.logback:logstash-logback-encoder:4.7')
+  compile('com.google.guava:guava')
+  compile('org.projectlombok:lombok:1.16.12')
+
+  compile('cz.jirutka.validator:validator-collection:2.1.6')
+
+  testCompile('org.springframework.boot:spring-boot-starter-test')
+
+}
+
+dependencyManagement {
+  imports {
+    mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+  }
+}
+
+bootRun {
+  systemProperty 'spring.profiles.active', project.hasProperty('env') ? env : 'local'
+  if (!project.hasProperty('env') || project.property('env') == 'local') {
+    systemProperty 'spring.cloud.config.enabled', 'false'
+    jvmArgs "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
+  }
+}
+
+sonarqube {
+  properties {
+    property "sonar.host.url", "http://sonar:9000"
+    property "sonar.jacoco.reportPath", "build/jacoco/test.exec"
+    property "sonar.coverage.exclusions", "src/main/java/com/c4/**/*.java"
+  }
+}
+
+release {
+  newVersionCommitMessage = '[Release] Increasing release version and generating git tag: '
+  tagTemplate = '${name}-${version}'
+  versionPropertyFile = 'gradle.properties'
+  git {
+    requireBranch = 'master'
+  }
+}
+
+//Define source to Nexus
+task sourcesJar(type: Jar, dependsOn: classes) {
+  classifier = 'sources'
+  from sourceSets.main.allSource
+}
+
+//Define artifact to Nexus
+artifacts {
+  archives sourcesJar
+}
+
+publishing {
+  publications {
+    maven(org.gradle.api.publish.maven.MavenPublication) {
+      artifactId = 'demo-mocks'
+      groupId = 'com.demo'
+
+      from components.java
+    }
+  }
+}
+
+task generateGitProperties {
+  doLast {
+    try {
+      def branch = 'git rev-parse --abbrev-ref HEAD'.execute().text.trim()
+      def revision = 'git rev-list --max-count 1 --timestamp HEAD'.execute().text.trim()
+      def commitHash = revision.split(' ').last()
+      def timestamp = revision ? new java.util.Date(java.util.concurrent.TimeUnit.SECONDS.toMillis(revision.split(' ').first() as long)).format("yyyy-MM-dd'T'HH:mm:ssZ") : null
+
+      File resourcesDir = new File(project.getBuildDir(), 'resources/main')
+      File propertiesFile = new File(resourcesDir, 'git.properties')
+
+      if (timestamp) {
+        if (!propertiesFile.exists()) {
+          resourcesDir.mkdirs()
+          propertiesFile.createNewFile()
+        }
+        propertiesFile.text =
+            """git.branch=${branch}
+git.commit.id=${commitHash}
+git.commit.time=${timestamp}"""
+      } else {
+        project.logger.error('Unable to generate Git properties file:  revision could not be retrieved from Git.')
+      }
+    } catch (e) {
+      project.logger.error('Unable to generate Git properties file.', e)
+    }
+  }
+}
+
+project.tasks.processResources.dependsOn('generateGitProperties')
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+jar {
+  baseName = 'mocks'
+  version = theVersion
+}

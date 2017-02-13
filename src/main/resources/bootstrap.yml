@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: StartersDemo
+  cloud.config:
+    enabled: false
+    name: starter-demo
