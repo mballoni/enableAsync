@@ -24,7 +24,7 @@ public class AsyncMVCContext extends AsyncConfigurerSupport {
     executor.setMaxPoolSize(42);
     executor.setQueueCapacity(11);
     executor.setThreadNamePrefix("ContextAwareExecutor-");
-    executor.initialize();
+//    executor.initialize();
     return new ContextAwareExecutorDecorator(executor);
   }
 }
